@@ -58,3 +58,4 @@ ffmpeg
 numpy==1.23.5
 spacy==3.6.0
 thinc==8.1.0
+distutils
