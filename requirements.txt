@@ -22,7 +22,7 @@ more-itertools==10.3.0
 mpmath==1.3.0
 networkx==3.3
 numba==0.60.0
-numpy==1.25.2
+numpy
 openai-whisper==20231117
 opencv-python==4.10.0.84
 opencv-python-headless==4.10.0.84
