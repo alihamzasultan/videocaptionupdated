@@ -11,15 +11,8 @@ import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
 import cv2
 import spacy
-import subprocess
-import sys
 
-# Install spacy manually if not found
-try:
-    import spacy
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "spacy"])
-    import spacy
+
 
 # Set page configuration with sidebar collapsed by default
 st.set_page_config(
