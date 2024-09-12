@@ -56,3 +56,4 @@ urllib3==2.2.2
 watchdog==4.0.1
 ffmpeg-python==0.2.0
 spacy==3.6.1
+whisper
