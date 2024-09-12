@@ -5,3 +5,4 @@ tqdm
 streamlit
 Pillow
 spacy
+ffmpeg
