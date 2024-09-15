@@ -1,7 +1,7 @@
 import cv2
 import whisper
 import subprocess
-import os
+
 import numpy as np
 from tqdm import tqdm
 import textwrap
@@ -10,7 +10,7 @@ import tempfile
 import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
 import cv2
-import spacy
+
 # Set page configuration with sidebar collapsed by default
 st.set_page_config(
     page_title="Video Caption AI",
@@ -19,6 +19,16 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
 
+import spacy
+import os
+
+# Define the path to the local Spacy model
+spacy_model_path = "./spacy_models/en_core_web_sm"
+
+# Load the model from the custom path
+nlp = spacy.load(spacy_model_path)
+
+# Now you can use the `nlp` object as needed
 
 
 def get_text_y_position(position, text_height, height):
