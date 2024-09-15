@@ -10,9 +10,6 @@ import tempfile
 import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
 import cv2
-import spacy
-
-
 
 # Set page configuration with sidebar collapsed by default
 st.set_page_config(
@@ -21,6 +18,16 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
+
+import spacy
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    print("Downloading spacy model 'en_core_web_sm'...")
+    from spacy.cli import download
+    download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
+
 
 def get_text_y_position(position, text_height, height):
     if position == "top":
