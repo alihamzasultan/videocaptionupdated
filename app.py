@@ -19,17 +19,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
 
-# Define the path to install the Spacy model locally
-spacy_model_path = "./models/en_core_web_sm"
-
-# Check if the Spacy model is already installed in the local path, if not, download it
-if not os.path.exists(spacy_model_path):
-    os.makedirs(spacy_model_path, exist_ok=True)
-    # Download the model directly to the desired path using subprocess
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm", "--target", spacy_model_path])
-
-# Load the model from the custom path
-nlp = spacy.load(spacy_model_path)
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    # Download the model if it's not already installed
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
 def get_text_y_position(position, text_height, height):
     if position == "top":
