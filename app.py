@@ -19,19 +19,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
 
-import shutil
-
 # Define the path to install the Spacy model locally
 spacy_model_path = "./models/en_core_web_sm"
 
 # Check if the Spacy model is already installed in the local path, if not, download it
 if not os.path.exists(spacy_model_path):
-    # Download the model and extract it to the custom path
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm", "--direct"])
-    # Move the model to the correct local path
-    model_dir = spacy.util.get_data_path() / "en_core_web_sm"
-    if model_dir.exists():
-        shutil.move(str(model_dir), spacy_model_path)
+    os.makedirs(spacy_model_path, exist_ok=True)
+    # Download the model directly to the desired path using subprocess
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm", "--target", spacy_model_path])
 
 # Load the model from the custom path
 nlp = spacy.load(spacy_model_path)
