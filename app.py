@@ -42,8 +42,7 @@ def get_active_word_index(chunk_words, current_time, word_timestamps):
     return -1  # No active word if time doesn't match any
 
 
-# Load spaCy English model
-nlp = spacy.load("en_core_web_sm")
+
 def add_captions(frame, sentences, current_time, width, height, font, text_color, highlight_color, position, catchy_word_color="#FFFF00", border_color="#000000", border_thickness=2, background_blur_radius=10, fade_duration=1.0):
     visible_text = ''  # This will hold the text to display
     word_timestamps = []  # To store word timing for highlighting
