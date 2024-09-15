@@ -10,7 +10,7 @@ import tempfile
 import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
 import cv2
-
+import spacy
 # Set page configuration with sidebar collapsed by default
 st.set_page_config(
     page_title="Video Caption AI",
