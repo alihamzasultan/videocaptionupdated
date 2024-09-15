@@ -313,21 +313,6 @@ user_ip = md5(get_user_ip().encode()).hexdigest()
 # Load existing data
 data = load_button_data()
 
-# Sidebar: Display the total number of presses
-st.sidebar.write(f"user count: {data['count']}")
-
-# Main page: Check if the user has already pressed the button
-if user_ip not in data['users']:
-    if st.button('Press Me!'):
-        # Increment the counter and save the user's IP
-        data['count'] += 1
-        data['users'].append(user_ip)
-        save_button_data(data)
-        st.success(f"Thank you!")
-else:
-    st.write(f'Getting better day by day😊!')
-
-
 
 st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">', unsafe_allow_html=True)
 
