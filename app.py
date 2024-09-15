@@ -19,12 +19,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
 
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    # Download the model if it's not already installed
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
+
 
 def get_text_y_position(position, text_height, height):
     if position == "top":
