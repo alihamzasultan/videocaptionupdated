@@ -4,4 +4,4 @@ numpy
 tqdm
 streamlit
 Pillow
-spacy
+spacy=3.4.1
