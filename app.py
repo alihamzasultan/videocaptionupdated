@@ -1,16 +1,14 @@
 import cv2
 import whisper
 import subprocess
-
+import os
 import numpy as np
 from tqdm import tqdm
-import textwrap
 import streamlit as st
 import tempfile
 import shutil
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
 import cv2
-
 # Set page configuration with sidebar collapsed by default
 st.set_page_config(
     page_title="Video Caption AI",
@@ -18,18 +16,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"  # Sidebar starts collapsed
 )
-
-import spacy
-import os
-
-# Define the path to the local Spacy model
-spacy_model_path = "./spacy_models/en_core_web_sm"
-
-# Load the model from the custom path
-nlp = spacy.load(spacy_model_path)
-
-# Now you can use the `nlp` object as needed
-
 
 def get_text_y_position(position, text_height, height):
     if position == "top":
@@ -131,26 +117,15 @@ def add_captions(frame, sentences, current_time, width, height, font, text_color
     pil_image = Image.alpha_composite(pil_image.convert("RGBA"), blurred_background)
 
     # Analyze the visible text with spaCy to identify catchy words
-    doc = nlp(visible_text)
-    catchy_words = {token.text for token in doc if token.pos_ in {"PROPN"}}
-
+  
     # Draw text with fade effect
     draw = ImageDraw.Draw(pil_image)
     words = visible_text.split()
-    word_positions = []
-
-    # Define a larger font size for catchy words
-    catchy_font_size = font.size + 10  # Increase font size by 10
-    catchy_font = ImageFont.truetype(font.path, catchy_font_size)
-
+   
     for i, word in enumerate(words):
-        # Determine the font and color for the word
-        if word in catchy_words:
-            word_font = catchy_font
-            word_color = catchy_word_color
-        else:
-            word_font = font
-            word_color = highlight_color if i == highlighted_word_index else text_color
+
+        word_font = font
+        word_color = highlight_color if i == highlighted_word_index else text_color
 
         word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=word_font)
         word_width = word_bbox[2] - word_bbox[0]
