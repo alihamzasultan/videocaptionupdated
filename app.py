@@ -3,19 +3,12 @@ import whisper
 import subprocess
 import os
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 import streamlit as st
 import tempfile
 import shutil
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
-import cv2
-# Set page configuration with sidebar collapsed by default
-st.set_page_config(
-    page_title="Video Caption AI",
-    page_icon="🎥",
-    layout="centered",
-    initial_sidebar_state="collapsed"  # Sidebar starts collapsed
-)
+
 
 def get_text_y_position(position, text_height, height):
     if position == "top":
@@ -40,14 +33,18 @@ def get_active_word_index(chunk_words, current_time, word_timestamps):
         if start_time <= current_time <= end_time:
             return i
     return -1  # No active word if time doesn't match any
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import numpy as np
+import cv2
 
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+import numpy as np
+import cv2
 
-
-def add_captions(frame, sentences, current_time, width, height, font, text_color, highlight_color, position, catchy_word_color="#FFFF00", border_color="#000000", border_thickness=2, background_blur_radius=10, fade_duration=1.0):
+def add_typing_effect(frame, sentences, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=50):
     visible_text = ''  # This will hold the text to display
     word_timestamps = []  # To store word timing for highlighting
     highlighted_word_index = -1
-    fade_in_opacity = 0  # Start with full transparency
 
     # Find the active sentence based on current time
     for sentence_tuple in sentences:
@@ -64,36 +61,20 @@ def add_captions(frame, sentences, current_time, width, height, font, text_color
             total_chunks = len(chunks)
             chunk_duration = (end_time - start_time) / total_chunks
             chunk_index = int((current_time - start_time) // chunk_duration)
-
             if chunk_index < total_chunks:
                 visible_text = chunks[chunk_index]
-
-                # Get the actual time range for the current chunk
-                chunk_start_time = start_time + chunk_index * chunk_duration
-                chunk_end_time = chunk_start_time + chunk_duration
-
-                # Calculate fade in based on time
-                time_since_chunk_start = current_time - chunk_start_time
-                if time_since_chunk_start < fade_duration:
-                    fade_in_opacity = int((time_since_chunk_start / fade_duration) * 255)
-                else:
-                    fade_in_opacity = 255
-
-                # Adjust the word timestamps to the current chunk's time range
                 word_timestamps = [
-                    (word, ts[0] - chunk_start_time, ts[1] - chunk_start_time) for word, ts in zip(sentence.split(), timestamps)
-                    if chunk_start_time <= ts[0] <= chunk_end_time
+                    (word, ts[0] - start_time, ts[1] - start_time) for word, ts in zip(sentence.split(), timestamps)
+                    if start_time <= ts[0] <= end_time
                 ]
-
                 highlighted_word_index = get_active_word_index(
                     visible_text.split(),
-                    current_time - chunk_start_time,
+                    current_time - start_time,
                     word_timestamps
                 )
+            break
 
-                break
-
-    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).convert("RGBA")
+    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(pil_image)
 
     text_bbox = draw.textbbox((0, 0), visible_text, font=font)
@@ -103,7 +84,7 @@ def add_captions(frame, sentences, current_time, width, height, font, text_color
     # Create a smaller background image for the text
     background_image = Image.new("RGBA", pil_image.size, (0, 0, 0, 0))
     background_draw = ImageDraw.Draw(background_image)
-
+    
     # Adjust padding to make the background smaller around the text
     padding = 5  # Reduced padding
     background_bbox = (x_cursor - padding, y_cursor - padding, x_cursor + text_width + padding, y_cursor + text_height + padding)
@@ -115,42 +96,32 @@ def add_captions(frame, sentences, current_time, width, height, font, text_color
     # Overlay the blurred background on the original image
     pil_image = Image.alpha_composite(pil_image.convert("RGBA"), blurred_background)
 
-    # Analyze the visible text with spaCy to identify catchy words
-  
-    # Draw text with fade effect
+    # Draw text with a border on the main image
     draw = ImageDraw.Draw(pil_image)
     words = visible_text.split()
-   
+    word_positions = []
+
     for i, word in enumerate(words):
-
-        word_font = font
-        word_color = highlight_color if i == highlighted_word_index else text_color
-
-        word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=word_font)
+        word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=font)
         word_width = word_bbox[2] - word_bbox[0]
-
-        # Draw border with fade effect
-        border_color_with_alpha = (*ImageColor.getrgb(border_color), fade_in_opacity)
-        for dx in range(-border_thickness, border_thickness + 1):
-            for dy in range(-border_thickness, border_thickness + 1):
-                if dx != 0 or dy != 0:
-                    draw.text((x_cursor + dx, y_cursor + dy), word, font=word_font, fill=border_color_with_alpha)
-
-        # Draw word with fade effect
-        text_color_with_alpha = (*ImageColor.getrgb(word_color), fade_in_opacity)
-        draw.text((x_cursor, y_cursor), word, font=word_font, fill=text_color_with_alpha)
-
-        # Update cursor position for next word
+        word_positions.append((x_cursor, y_cursor, word, highlight_color if i == highlighted_word_index else text_color))
         x_cursor += word_width
 
-    # Convert image back to OpenCV format
-    frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGBA2BGR)
+    # Draw the border by iterating around the word position
+    for (x, y, word, color) in word_positions:
+        for dx in range(-border_thickness, border_thickness + 1):
+            for dy in range(-border_thickness, border_thickness + 1):
+                if dx != 0 or dy != 0:  # Skip the original position
+                    draw.text((x + dx, y + dy), word, font=font, fill=border_color)
+
+        # Draw the actual text
+        draw.text((x, y), word, font=font, fill=color)
+
+    frame = cv2.cvtColor(np.array(pil_image.convert("RGB")), cv2.COLOR_RGB2BGR)
     return frame
 
 
-
-
-def process_video(audio_path, video_path, output_dir, font, text_color, highlight_color, position, background_blur_radius=10):
+def process_video(audio_path, video_path, output_dir, font, text_color, highlight_color, position, background_blur_radius=50):
     temp_video_path = os.path.join(output_dir, "captioned_video.mp4")
     final_output_path = os.path.join(output_dir, "final_output.mp4")
 
@@ -179,7 +150,7 @@ def process_video(audio_path, video_path, output_dir, font, text_color, highligh
             break
 
         current_time = frame_number / fps
-        frame = add_captions(frame, segments_with_timestamps, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=background_blur_radius)
+        frame = add_typing_effect(frame, segments_with_timestamps, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=background_blur_radius)
 
         out.write(frame)
 
@@ -202,7 +173,7 @@ def process_video(audio_path, video_path, output_dir, font, text_color, highligh
     return final_output_path
 
 # Streamlit app layout
-st.title("AI Video Captioning🎥")
+st.title("Video Captioning Tool")
 position = st.selectbox("Choose text position:", ["top", "center", "bottom"])
 text_color = st.color_picker("Choose text color:", "#FFFFFF")
 highlight_color_rgb = "#ffFFff" 
@@ -233,8 +204,6 @@ else:
         draw.text((10, 10), sample_text, font=font, fill=text_color_rgb)
         st.image(preview_image, caption=f"Font: {font_style}")
 
-
-
 # Allow user to upload custom video file
 uploaded_video = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
 
@@ -242,14 +211,30 @@ if uploaded_video:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_file:
         temp_video_file.write(uploaded_video.getbuffer())
         video_path = temp_video_file.name
+        st.success("Video file uploaded and audio extracted successfully.")
 # Audio file uploader
-uploaded_audio = st.file_uploader("Upload an audio file", type=["mp3", "wav"])
-
+# Allow user to upload either audio or video
+uploaded_audio = st.file_uploader("Upload an audio or video file ", type=["mp3", "wav", "mp4", "mov"])
+from moviepy.editor import VideoFileClip
 if uploaded_audio:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio_file:
-        temp_audio_file.write(uploaded_audio.getbuffer())
-        audio_path = temp_audio_file.name
-
+    if uploaded_audio.type.startswith("audio"):
+        # Handle audio files
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio_file:
+            temp_audio_file.write(uploaded_audio.getbuffer())
+            audio_path = temp_audio_file.name
+            st.success("Audio file uploaded successfully.")
+    elif uploaded_audio.type.startswith("video"):
+        # Handle video files, extract audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_file:
+            temp_video_file.write(uploaded_audio.getbuffer())
+            video_path = temp_video_file.name
+            
+        # Extract audio from video
+        video_clip = VideoFileClip(video_path)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio_file:
+            video_clip.audio.write_audiofile(temp_audio_file.name)
+            audio_path = temp_audio_file.name
+            st.success("Video file uploaded and audio extracted successfully.")
 # Button to start processing
 if st.button("Start Processing"):
     if uploaded_audio and uploaded_video:
@@ -278,56 +263,3 @@ if st.button("Start Processing"):
                 shutil.rmtree(output_dir)
     else:
         st.error("Please upload an audio file and select a video.")
-
-
-import json
-from hashlib import md5
-import socket
-
-# File to store the count and list of users
-data_file = 'button_data.json'
-
-# Helper function to get user's IP address (simplified for testing)
-def get_user_ip():
-    # Getting a unique identifier for the user
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
-    return ip_address
-
-# Load the button data from a file
-def load_button_data():
-    if os.path.exists(data_file):
-        with open(data_file, 'r') as f:
-            return json.load(f)
-    else:
-        return {'count': 0, 'users': []}
-
-# Save the button data to a file
-def save_button_data(data):
-    with open(data_file, 'w') as f:
-        json.dump(data, f)
-
-# Get user IP
-user_ip = md5(get_user_ip().encode()).hexdigest()
-
-# Load existing data
-data = load_button_data()
-
-
-st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">', unsafe_allow_html=True)
-
-
-def footer():
-
-  html_temp = """
-  <div style="position: fixed; bottom: 50px; width: 100%; text-align: center; font-weight: bold;">
-    <p style="margin-bottom: 5px; font-size: 14px;">
-      Copyright &copy; Made By <span style="color: #007bff; font-weight: bold;">AliHamzaSultan</span>
-      <a href="https://www.linkedin.com/in/ali-hamza-sultan-1ba7ba267/" target="_blank" style="margin-left: 10px;"><i class="fab fa-linkedin" style="font-size: 20px;"></i></a>
-      <a href="https://github.com/alihamzasultan" target="_blank"><i class="fab fa-github" style="font-size: 20px; margin-left: 10px;"></i></a>
-    </p>
-  </div>
-  """
-  st.markdown(html_temp, unsafe_allow_html=True)
-
-footer()
