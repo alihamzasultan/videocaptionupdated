@@ -113,27 +113,17 @@ def add_captions(frame, sentences, current_time, width, height, font, text_color
     # Overlay the blurred background on the original image
     pil_image = Image.alpha_composite(pil_image.convert("RGBA"), blurred_background)
 
-    # Analyze the visible text with spaCy to identify catchy words
-    doc = nlp(visible_text)
-    catchy_words = {token.text for token in doc if token.pos_ in {"PROPN"}}
 
     # Draw text with fade effect
     draw = ImageDraw.Draw(pil_image)
     words = visible_text.split()
     word_positions = []
 
-    # Define a larger font size for catchy words
-    catchy_font_size = font.size + 10  # Increase font size by 10
-    catchy_font = ImageFont.truetype(font.path, catchy_font_size)
 
     for i, word in enumerate(words):
-        # Determine the font and color for the word
-        if word in catchy_words:
-            word_font = catchy_font
-            word_color = catchy_word_color
-        else:
-            word_font = font
-            word_color = highlight_color if i == highlighted_word_index else text_color
+
+        word_font = font
+        word_color = highlight_color if i == highlighted_word_index else text_color
 
         word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=word_font)
         word_width = word_bbox[2] - word_bbox[0]
