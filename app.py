@@ -41,10 +41,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import numpy as np
 import cv2
 
-def add_typing_effect(frame, sentences, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=50):
+def add_captions(frame, sentences, current_time, width, height, font, text_color, highlight_color, position, catchy_word_color="#FFFF00", border_color="#000000", border_thickness=2, background_blur_radius=10, fade_duration=1.0):
     visible_text = ''  # This will hold the text to display
     word_timestamps = []  # To store word timing for highlighting
     highlighted_word_index = -1
+    fade_in_opacity = 0  # Start with full transparency
 
     # Find the active sentence based on current time
     for sentence_tuple in sentences:
@@ -61,20 +62,36 @@ def add_typing_effect(frame, sentences, current_time, width, height, font, text_
             total_chunks = len(chunks)
             chunk_duration = (end_time - start_time) / total_chunks
             chunk_index = int((current_time - start_time) // chunk_duration)
+
             if chunk_index < total_chunks:
                 visible_text = chunks[chunk_index]
+
+                # Get the actual time range for the current chunk
+                chunk_start_time = start_time + chunk_index * chunk_duration
+                chunk_end_time = chunk_start_time + chunk_duration
+
+                # Calculate fade in based on time
+                time_since_chunk_start = current_time - chunk_start_time
+                if time_since_chunk_start < fade_duration:
+                    fade_in_opacity = int((time_since_chunk_start / fade_duration) * 255)
+                else:
+                    fade_in_opacity = 255
+
+                # Adjust the word timestamps to the current chunk's time range
                 word_timestamps = [
-                    (word, ts[0] - start_time, ts[1] - start_time) for word, ts in zip(sentence.split(), timestamps)
-                    if start_time <= ts[0] <= end_time
+                    (word, ts[0] - chunk_start_time, ts[1] - chunk_start_time) for word, ts in zip(sentence.split(), timestamps)
+                    if chunk_start_time <= ts[0] <= chunk_end_time
                 ]
+
                 highlighted_word_index = get_active_word_index(
                     visible_text.split(),
-                    current_time - start_time,
+                    current_time - chunk_start_time,
                     word_timestamps
                 )
-            break
 
-    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                break
+
+    pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).convert("RGBA")
     draw = ImageDraw.Draw(pil_image)
 
     text_bbox = draw.textbbox((0, 0), visible_text, font=font)
@@ -84,7 +101,7 @@ def add_typing_effect(frame, sentences, current_time, width, height, font, text_
     # Create a smaller background image for the text
     background_image = Image.new("RGBA", pil_image.size, (0, 0, 0, 0))
     background_draw = ImageDraw.Draw(background_image)
-    
+
     # Adjust padding to make the background smaller around the text
     padding = 5  # Reduced padding
     background_bbox = (x_cursor - padding, y_cursor - padding, x_cursor + text_width + padding, y_cursor + text_height + padding)
@@ -96,32 +113,53 @@ def add_typing_effect(frame, sentences, current_time, width, height, font, text_
     # Overlay the blurred background on the original image
     pil_image = Image.alpha_composite(pil_image.convert("RGBA"), blurred_background)
 
-    # Draw text with a border on the main image
+    # Analyze the visible text with spaCy to identify catchy words
+    doc = nlp(visible_text)
+    catchy_words = {token.text for token in doc if token.pos_ in {"PROPN"}}
+
+    # Draw text with fade effect
     draw = ImageDraw.Draw(pil_image)
     words = visible_text.split()
     word_positions = []
 
-    for i, word in enumerate(words):
-        word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=font)
-        word_width = word_bbox[2] - word_bbox[0]
-        word_positions.append((x_cursor, y_cursor, word, highlight_color if i == highlighted_word_index else text_color))
-        x_cursor += word_width
+    # Define a larger font size for catchy words
+    catchy_font_size = font.size + 10  # Increase font size by 10
+    catchy_font = ImageFont.truetype(font.path, catchy_font_size)
 
-    # Draw the border by iterating around the word position
-    for (x, y, word, color) in word_positions:
+    for i, word in enumerate(words):
+        # Determine the font and color for the word
+        if word in catchy_words:
+            word_font = catchy_font
+            word_color = catchy_word_color
+        else:
+            word_font = font
+            word_color = highlight_color if i == highlighted_word_index else text_color
+
+        word_bbox = draw.textbbox((x_cursor, y_cursor), word + " ", font=word_font)
+        word_width = word_bbox[2] - word_bbox[0]
+
+        # Draw border with fade effect
+        border_color_with_alpha = (*ImageColor.getrgb(border_color), fade_in_opacity)
         for dx in range(-border_thickness, border_thickness + 1):
             for dy in range(-border_thickness, border_thickness + 1):
-                if dx != 0 or dy != 0:  # Skip the original position
-                    draw.text((x + dx, y + dy), word, font=font, fill=border_color)
+                if dx != 0 or dy != 0:
+                    draw.text((x_cursor + dx, y_cursor + dy), word, font=word_font, fill=border_color_with_alpha)
 
-        # Draw the actual text
-        draw.text((x, y), word, font=font, fill=color)
+        # Draw word with fade effect
+        text_color_with_alpha = (*ImageColor.getrgb(word_color), fade_in_opacity)
+        draw.text((x_cursor, y_cursor), word, font=word_font, fill=text_color_with_alpha)
 
-    frame = cv2.cvtColor(np.array(pil_image.convert("RGB")), cv2.COLOR_RGB2BGR)
+        # Update cursor position for next word
+        x_cursor += word_width
+
+    # Convert image back to OpenCV format
+    frame = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGBA2BGR)
     return frame
 
 
-def process_video(audio_path, video_path, output_dir, font, text_color, highlight_color, position, background_blur_radius=50):
+
+
+def process_video(audio_path, video_path, output_dir, font, text_color, highlight_color, position, background_blur_radius=10):
     temp_video_path = os.path.join(output_dir, "captioned_video.mp4")
     final_output_path = os.path.join(output_dir, "final_output.mp4")
 
@@ -150,7 +188,7 @@ def process_video(audio_path, video_path, output_dir, font, text_color, highligh
             break
 
         current_time = frame_number / fps
-        frame = add_typing_effect(frame, segments_with_timestamps, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=background_blur_radius)
+        frame = add_captions(frame, segments_with_timestamps, current_time, width, height, font, text_color, highlight_color, position, border_color="#000000", border_thickness=2, background_blur_radius=background_blur_radius)
 
         out.write(frame)
 
