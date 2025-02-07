@@ -243,7 +243,7 @@ if uploaded_video:
 # Audio file uploader
 # Allow user to upload either audio or video
 uploaded_audio = st.file_uploader("Upload an audio or video file ", type=["mp3", "wav", "mp4", "mov"])
-from moviepy.editor import VideoFileClip
+from moviepy import VideoFileClip
 if uploaded_audio:
     if uploaded_audio.type.startswith("audio"):
         # Handle audio files
