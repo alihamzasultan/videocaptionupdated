@@ -3,7 +3,7 @@ import whisper
 import subprocess
 import os
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # Added ImageColor
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageColor  # AddedImageColor
 from tqdm import tqdm
 import streamlit as st
 import tempfile
