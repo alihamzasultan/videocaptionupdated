@@ -218,9 +218,9 @@ else:
         font_style = st.selectbox("Choose font style:", [f[:-4] for f in font_files])
         font_size_option = st.selectbox("Choose font size:", ["Small", "Medium", "Large"])
         font_size_map = {
-            "Small": 30,
-            "Medium": 35,
-            "Large": 40
+            "Small": 20,
+            "Medium": 25,
+            "Large": 30
         }
         font_size = font_size_map[font_size_option]
         sample_text = "Selected Font"
