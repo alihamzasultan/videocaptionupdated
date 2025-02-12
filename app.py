@@ -201,7 +201,7 @@ def process_video(audio_path, video_path, output_dir, font, text_color, highligh
     return final_output_path
 
 # Streamlit app layout
-st.title("Video Captioning Tool")
+st.title("Video Captioning")
 position = st.selectbox("Choose text position:", ["top", "center", "bottom"])
 text_color = st.color_picker("Choose text color:", "#FFFFFF")
 highlight_color_rgb = "#ffFFff" 
